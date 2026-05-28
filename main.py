@@ -8,6 +8,10 @@ from openai import OpenAI
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
 
+responses = ["idk bruh", "no", "hell no", "bruh what", "yea sure why not", "uhhh idk",
+             "LMFAOOOOO", "oh my god this dude", "yea go for it", "ofc", 
+             "nah im good", "ask me next time bruh what is ts"]
+
 handler = logging.FileHandler(filename="discord.log", encoding='utf-8', mode='w')
 intents = discord.Intents.default()
 intents.message_content = True
@@ -18,7 +22,7 @@ client = OpenAI(api_key=os.environ.get("OPEN_AI_KEY"))
 SUMMARY_HISTORY_LIMIT = 60
 SUMMARY_CHAR_LIMIT = 12000
 
-def summarize_text(text: str) -> str:
+def summarize_text(history: str,text: str) -> str:
   try:
     print("call openai api")
     completion = client.chat.completions.create(
@@ -30,10 +34,12 @@ def summarize_text(text: str) -> str:
             "Your job is to summarize plans from Discord chat messages. "
             "Extract concrete details like but not limited to date, time, location, participants, and pending questions. "
             "If one of the fields above are empty, dont include it in the response."
+            "Do not bold or add any text candy"
+            "Dont add any headers, only include the text"
             "If details conflict, call that out briefly. Keep the response concise and text-only."
           )
         },
-        {"role": "user", "content": f"Here is the chat history:\n\n{text}"}
+        {"role": "user", "content": f"Please help summarize the text given the text context and chat history.\n\n Here is the text context: {text}\n\nHere is the chat history:\n\n{history}"}
       ]
     )
     return completion.choices[0].message.content or "I could not generate a summary."
@@ -68,13 +74,14 @@ async def on_message(message):
   if message.author == bot.user:
     return
   
-  if bot.user in message.mentions and "summarize" in message.content.lower():
+  text = message.content
+  if bot.user in message.mentions and "summarize" in text.lower():
     await message.channel.send("ok gimme sec")
     chat_history = await get_recent_chat_history(message.channel)
     if not chat_history:
       await message.channel.send("coudlnt fine messages you chud")
     else:
-      summary = summarize_text(chat_history)
+      summary = summarize_text(chat_history, text)
       await message.channel.send(f"heres the summary dummy:\n{summary}")
 
   await bot.process_commands(message)
