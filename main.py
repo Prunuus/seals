@@ -176,7 +176,7 @@ async def on_message(message):
     else:
       # res = random.choice(responses)
       # await message.channel.send(res)
-      response = simple_request(text)
+      response = await simple_request(text)
       filler = ["uhh", "um", "lemme think", "let me cook", "i think.."]
       await message.channel.send(random.choice(filler))
       await message.channel.send(response)
@@ -185,7 +185,7 @@ async def on_message(message):
     if not chat_history:
       await message.channel.send("coudlnt fine messages you chud")
     else:
-      summary = summarize_text(chat_history, text)
+      summary = await summarize_text(chat_history, text)
       await message.channel.send(f"heres the summary dummy:\n{summary}")
 
   await bot.process_commands(message)
