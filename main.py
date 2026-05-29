@@ -29,6 +29,8 @@ SUMMARY_CHAR_LIMIT = 12000
 INVITE_CONFIRM_EMOJI_NAME = "emoji_5"
 INVITE_DECLINE_EMOJI_NAME = "emoji_4"
 INVITE_RESPONSE_TIMEOUT = 300
+RECENT_MESSAGE_IDS: set[int] = set()
+RECENT_MESSAGE_ID_LIMIT = 500
 
 #----------------------------
 
@@ -164,6 +166,13 @@ async def on_ready():
 async def on_message(message):
   if message.author == bot.user:
     return
+
+  if message.id in RECENT_MESSAGE_IDS:
+    return
+
+  RECENT_MESSAGE_IDS.add(message.id)
+  if len(RECENT_MESSAGE_IDS) > RECENT_MESSAGE_ID_LIMIT:
+    RECENT_MESSAGE_IDS.clear()
   
   if "https" not in message.content and ("67" in message.content or "6 7" in message.content):
     await message.channel.send("mannn get this dude out of here. making a 67 joke in the big 26. triple t wouldnt have dont that")
