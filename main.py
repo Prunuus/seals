@@ -13,9 +13,9 @@ keep_alive()
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
 
-responses = ["idk bruh", "no", "hell no", "bruh what", "yea sure why not", "uhhh idk",
-             "LMFAOOOOO", "oh my god this dude", "yea go for it", "ofc", 
-             "nah im good", "ask me next time bruh what is ts"]
+# responses = ["idk bruh", "no", "hell no", "bruh what", "yea sure why not", "uhhh idk",
+#              "LMFAOOOOO", "oh my god this dude", "yea go for it", "ofc", 
+#              "nah im good", "ask me next time bruh what is ts"]
 
 handler = logging.FileHandler(filename="discord.log", encoding='utf-8', mode='w')
 intents = discord.Intents.default()
@@ -46,19 +46,19 @@ def normalize_emoji_value(emoji: discord.Emoji | discord.PartialEmoji | str) -> 
     return str(emoji_id)
   return str(emoji)
 #----------------------------
-def simple_request(text:str) -> str:
+async def simple_request(text:str) -> str:
   try:
-    completion = client.chat.completions.create(
+    completion = await client.chat.completions.create(
       model="gpt-5.4-mini",
       messages =[
         {
           "role":"system",
           "content":(
-            "Your persona is a seal"
+            "Your persona is a seal. Do not mention you are an ai when describing yourself."
             "Your job is to just answer the question as simple as possible. act like an adult teen that will use slang from modern day memes."
             "This can include memes like brainrot characters, slang words like 'cuh, skibidi, bruh, dumbahh, etc.'"
-            "Try to limit the answer in 1 or 2 sentences"
-            "If you couldnt summary, simply say the following 'i couldnt summarize it because your request was too dumb'"
+            "Try to limit the answer in 1-5 sentences"
+            "If you cant give a response to someone's request, only say the following: 'i couldnt summarize it because your request was too dumb'"
             "Ignore proper text casing meaning keep everything lowercase and dont use any punctuation besides periods, question marks, or exclamation points."
           )
         },
@@ -71,10 +71,10 @@ def simple_request(text:str) -> str:
     return "oh whoops i couldnt do it lol. blame the coder"
   
 
-def summarize_text(history: str,text: str) -> str:
+async def summarize_text(history: str,text: str) -> str:
   try:
     print("call openai api")
-    completion = client.chat.completions.create(
+    completion = await client.chat.completions.create(
       model="gpt-4o-mini",
       messages=[
         {
@@ -165,7 +165,7 @@ async def on_message(message):
   if message.author == bot.user:
     return
   
-  if "67" in message.content or "6 7" in message.content:
+  if "https" not in message.content and ("67" in message.content or "6 7" in message.content):
     await message.channel.send("mannn get this dude out of here. making a 67 joke in the big 26. triple t wouldnt have dont that")
   
   text = message.content
@@ -174,8 +174,13 @@ async def on_message(message):
       await message.channel.send("ok gimme sec")
       chat_history = await get_recent_chat_history(message.channel)
     else:
-      res = random.choice(responses)
-      await message.channel.send(res)
+      # res = random.choice(responses)
+      # await message.channel.send(res)
+      response = simple_request(text)
+      filler = ["uhh", "um", "lemme think", "let me cook", "i think.."]
+      await message.channel.send(random.choice(filler))
+      await message.channel.send(response)
+      
       
     if not chat_history:
       await message.channel.send("coudlnt fine messages you chud")
@@ -221,11 +226,11 @@ async def invite(ctx, *, text: str = None):
   declined = [user for user in invited_users if responses.get(user.id) is False]
   pending = [user for user in invited_users if user.id not in responses]
 
-  if pending:
-    pending_text = ", ".join(user.mention for user in pending)
-    await ctx.send(f"invite for {game_name} is still waiting on: {pending_text}")
-    await ctx.send("hurry tf up")
-    return
+  # if pending:
+  #   pending_text = ", ".join(user.mention for user in pending)
+  #   await ctx.send(f"invite for {game_name} is still waiting on: {pending_text}")
+  #   await ctx.send("hurry tf up")
+  #   return
 
   summary_parts = []
   if accepted:
@@ -238,11 +243,11 @@ async def invite(ctx, *, text: str = None):
 
   await ctx.send(f"final consensus for {game_name}: {'; '.join(summary_parts)}")
   #----------------------------------------------
-@bot.command()
-async def question(ctx, *, text:str= None):
-  response = simple_request(text)
-  await ctx.send("too lazy to search it up lookin ahh")
-  await ctx.send(response)
+# @bot.command()
+# async def question(ctx, *, text:str= None):
+#   response = simple_request(text)
+#   await ctx.send("too lazy to search it up lookin ahh")
+#   await ctx.send(response)
     
   
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
