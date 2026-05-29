@@ -48,7 +48,7 @@ def normalize_emoji_value(emoji: discord.Emoji | discord.PartialEmoji | str) -> 
 #----------------------------
 async def simple_request(text:str) -> str:
   try:
-    completion = await client.chat.completions.create(
+    completion = client.chat.completions.create(
       model="gpt-5.4-mini",
       messages =[
         {
@@ -74,7 +74,7 @@ async def simple_request(text:str) -> str:
 async def summarize_text(history: str,text: str) -> str:
   try:
     print("call openai api")
-    completion = await client.chat.completions.create(
+    completion = client.chat.completions.create(
       model="gpt-4o-mini",
       messages=[
         {
