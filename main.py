@@ -169,7 +169,7 @@ async def on_message(message):
     await message.channel.send("mannn get this dude out of here. making a 67 joke in the big 26. triple t wouldnt have dont that")
   
   text = message.content
-  if bot.user in message.mentions:
+  if bot.user and any(user.id == bot.user.id for user in message.mentions):
     if "summarize" in text.lower():
       await message.channel.send("ok gimme sec")
       chat_history = await get_recent_chat_history(message.channel)
@@ -181,8 +181,9 @@ async def on_message(message):
     else:
       response = await simple_request(text)
       filler = ["uhh", "um", "lemme think", "let me cook", "i think.."]
-      await message.channel.send(random.choice(filler))
-      await message.channel.send(response)
+      await message.channel.send(f"{random.choice(filler)}\n{response}")
+
+    return
 
   await bot.process_commands(message)
   
