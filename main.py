@@ -29,7 +29,6 @@ SUMMARY_CHAR_LIMIT = 12000
 INVITE_CONFIRM_EMOJI_NAME = "emoji_5"
 INVITE_DECLINE_EMOJI_NAME = "emoji_4"
 INVITE_RESPONSE_TIMEOUT = 300
-
 #----------------------------
 
 def resolve_guild_emoji(guild: discord.Guild | None, emoji_name: str, fallback: str) -> discord.Emoji | discord.PartialEmoji | str:
