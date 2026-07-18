@@ -164,8 +164,8 @@ async def on_message(message):
   if message.author == bot.user:
     return
   
-  if "https" not in message.content and ("67" in message.content or "6 7" in message.content):
-    await message.channel.send("mannn get this dude out of here. making a 67 joke in the big 26. triple t wouldnt have dont that")
+  # if "https" not in message.content and ("67" in message.content or "6 7" in message.content):
+  #   await message.channel.send("mannn get this dude out of here. making a 67 joke in the big 26. triple t wouldnt have dont that")
   
   text = message.content
   if bot.user and any(user.id == bot.user.id for user in message.mentions):
