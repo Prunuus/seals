@@ -19,7 +19,7 @@ user_sessions: dict[int, str] = {}  # discord user id -> session token
 def render(s: dict) -> discord.Embed:
   played = s["played"]
   done = len(played) == len(games.GAMES)
-  embed = discord.Embed(title=f"🦭 {s['name']}'s daily games · {s['day']}", color=0x2ecc71 if done else 0x5865f2)
+  embed = discord.Embed(title=f"{s['name']}'s daily games · {s['day']}", color=0x2ecc71 if done else 0x5865f2)
   lines = [f"{'✅' if key in played else '⬜'} {name}" for key, (name, _) in games.GAMES.items()]
   if done:
     status = "played all of them today"
