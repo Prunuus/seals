@@ -43,7 +43,9 @@ def load() -> None:
 
 
 def for_user(user_id: int) -> dict | None:
-  return next((s for s in SESSIONS.values() if s["user_id"] == user_id and s["day"] == today()), None)
+  day = today()
+  with _lock:  # new_session may be deleting old sessions from another thread
+    return next((s for s in SESSIONS.values() if s["user_id"] == user_id and s["day"] == day), None)
 
 
 def new_session(user_id: int, name: str) -> dict:

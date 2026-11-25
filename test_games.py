@@ -98,6 +98,22 @@ assert lb["board"]["krillion"][0] == {"name": "bob", "score": 520, "summary": "5
 assert lb["board"]["chess"][0]["secs"] == 80 and lb["board"]["gauntle"] == []
 assert c.get("/play/bad/leaderboard").status_code == 404
 
+# --- /daily-games: a fresh embed each run, the previous one deleted, the private reply expiring ---
+import asyncio
+from types import SimpleNamespace as NS
+replies, posted, deleted = [], [], []
+async def reply(content, **kw): replies.append(kw)
+async def post(embed):
+  m = NS(id=1000 + len(posted), channel=NS(id=55)); posted.append(m); return m
+main.bot.get_partial_messageable = lambda cid: NS(get_partial_message=lambda mid: NS(delete=lambda: (deleted.append((cid, mid)), asyncio.sleep(0))[1]))
+inter = NS(user=NS(id=77, display_name="dana"), response=NS(send_message=reply), channel=NS(send=post))
+asyncio.run(main.daily_games.callback(inter))
+asyncio.run(main.daily_games.callback(inter))
+dana = games.for_user(77)
+assert len(posted) == 2 and dana["message_id"] == 1001 and dana["channel_id"] == 55
+assert deleted == [(55, 1000)]  # the first embed is removed when the second is posted
+assert all(r["ephemeral"] and r["delete_after"] == 60 for r in replies) and len(replies) == 2
+
 # chess.com's API-host checks are patched to stay on the page's origin
 chess_js = b"if(n===`api`||n.startsWith(`api-`)?e:x);if(a.b.hostname===`localhost`)t=1"
 assert proxy._chess_js(chess_js) == b"if(!0?e:x);if(!0)t=1"

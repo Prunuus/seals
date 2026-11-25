@@ -62,11 +62,19 @@ async def daily_games(interaction: discord.Interaction):
   s = await asyncio.to_thread(get_session, interaction.user)  # may write to the database; keep the bot responsive
   view = discord.ui.View()
   view.add_item(discord.ui.Button(label="play", url=f"{PUBLIC_URL}/play/{s['token']}/"))
-  await interaction.response.send_message("good luck", view=view, ephemeral=True)
-  if not s.get("message_id"):
-    msg = await interaction.channel.send(embed=render(s))
-    s["channel_id"], s["message_id"] = msg.channel.id, msg.id
-    await asyncio.to_thread(db.save_session, s)
+  # the private reply vanishes after a minute to keep the channel tidy; running the command again brings it back
+  await interaction.response.send_message("good luck", view=view, ephemeral=True, delete_after=60)
+  # post your embed fresh where you ran this and remove your previous one, so it's always the
+  # latest message rather than lost further up, in another channel, or deleted
+  old_channel, old_message = s.get("channel_id"), s.get("message_id")
+  msg = await interaction.channel.send(embed=render(s))
+  s["channel_id"], s["message_id"] = msg.channel.id, msg.id
+  await asyncio.to_thread(db.save_session, s)
+  if old_message:
+    try:
+      await bot.get_partial_messageable(old_channel).get_partial_message(old_message).delete()
+    except discord.HTTPException:
+      pass  # already deleted, or the bot can't see that channel anymore
 
 
 if __name__ == "__main__":
