@@ -2,8 +2,10 @@ from flask import Flask, abort, redirect
 from threading import Thread
 import os
 import games
+import proxy
 
 app = Flask(__name__)
+app.before_request(proxy.handle)  # requests to a game's subdomain go to the proxy instead of the routes below
 
 @app.route('/')
 def home():
