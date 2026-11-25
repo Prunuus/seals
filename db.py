@@ -35,6 +35,11 @@ create table if not exists results (
   primary key (token, game)
 );
 alter table results add column if not exists secs double precision;  -- time to finish; added after the first deploy
+-- servers the player ran /daily-games in that day (whose leaderboards they're on), and the last one
+alter table sessions add column if not exists guilds bigint[] not null default '{}';
+alter table sessions add column if not exists guild bigint;
+-- the player's embed in each server: {"<server id>": [channel id, message id]}; replaces channel_id/message_id
+alter table sessions add column if not exists embeds jsonb not null default '{}';
 -- the bot connects as the postgres role, which bypasses row level security; turning it on with
 -- no policies keeps Supabase's public REST API (the anon key) out of these tables
 alter table sessions enable row level security;
@@ -68,11 +73,12 @@ def init(day: str) -> list[dict]:
 
 
 def save_session(s: dict) -> None:
-  _run("""insert into sessions (token, user_id, name, day, played, channel_id, message_id)
-          values (%s, %s, %s, %s, %s, %s, %s)
+  _run("""insert into sessions (token, user_id, name, day, played, guilds, guild, embeds)
+          values (%s, %s, %s, %s, %s, %s, %s, %s)
           on conflict (token) do update set name = excluded.name, played = excluded.played,
-            channel_id = excluded.channel_id, message_id = excluded.message_id""",
-       (s["token"], s["user_id"], s["name"], s["day"], s["played"], s.get("channel_id"), s.get("message_id")))
+            guilds = excluded.guilds, guild = excluded.guild, embeds = excluded.embeds""",
+       (s["token"], s["user_id"], s["name"], s["day"], s["played"], s.get("guilds", []), s.get("guild"),
+        Jsonb(s.get("embeds", {}))))
 
 
 def save_result(token: str, game: str, r: dict) -> None:

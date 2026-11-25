@@ -89,6 +89,8 @@ eve = games.new_session(3, "eve")
 games.record(eve, "wordle", 1, 3, ["3/6"], None, 95)  # same score as tester but timed: faster wins the tie
 games.record(bob, "chess", 1, 0, ["Perfect"], None, 200)
 games.record(eve, "chess", 1, 0, ["Perfect"], None, 80)
+for p in (s, bob, eve):
+  games.join_guild(p, 1)
 lb = c.get(f"/play/{t}/leaderboard").get_json()
 assert sorted(lb["done"]) == ["krillion", "wordle"]  # this viewer's finished games, for the green cards
 assert [(r["name"], r["score"]) for r in lb["board"]["krillion"]] == [("bob", 520), ("tester", 380)]  # higher wins
@@ -96,23 +98,54 @@ assert [r["name"] for r in lb["board"]["wordle"]] == ["eve", "tester", "bob"]  #
 assert [r["name"] for r in lb["board"]["chess"]] == ["eve", "bob"]  # equal scores: faster first
 assert lb["board"]["krillion"][0] == {"name": "bob", "score": 520, "summary": "520 points", "secs": None}
 assert lb["board"]["chess"][0]["secs"] == 80 and lb["board"]["gauntle"] == []
+
+# --- one board per server; a player on two servers shows on both with the same scores ---
+zed = games.new_session(4, "zed")
+games.join_guild(zed, 2)
+games.record(zed, "krillion", 133, 600, ["600 points"], None)
+games.join_guild(bob, 2)  # bob ran /daily-games in server 2 too
+names = lambda viewer, game: [r["name"] for r in games.leaderboard(viewer)[game]]
+assert names(s, "krillion") == ["bob", "tester"]  # server 1: no zed
+assert names(zed, "krillion") == ["zed", "bob"]  # server 2: bob's same 520, no tester
+assert games.leaderboard(zed)["krillion"][1]["score"] == games.leaderboard(s)["krillion"][0]["score"] == 520
+assert names(bob, "krillion") == ["zed", "bob"]  # bob's hub follows the server he last ran it in
+games.join_guild(bob, 1)
+assert names(bob, "krillion") == ["bob", "tester"] and bob["guilds"] == [1, 2]
+dm = games.new_session(5, "dm")
+games.join_guild(dm, None)  # run in a DM: no server board, just your own results
+games.record(dm, "krillion", 133, 1, ["1 points"], None)
+assert names(dm, "krillion") == ["dm"]
 assert c.get("/play/bad/leaderboard").status_code == 404
 
 # --- /daily-games: a fresh embed each run, the previous one deleted, the private reply expiring ---
 import asyncio
 from types import SimpleNamespace as NS
-replies, posted, deleted = [], [], []
+replies, posted, deleted, edited = [], [], [], []
 async def reply(content, **kw): replies.append(kw)
-async def post(embed):
-  m = NS(id=1000 + len(posted), channel=NS(id=55)); posted.append(m); return m
-main.bot.get_partial_messageable = lambda cid: NS(get_partial_message=lambda mid: NS(delete=lambda: (deleted.append((cid, mid)), asyncio.sleep(0))[1]))
-inter = NS(user=NS(id=77, display_name="dana"), response=NS(send_message=reply), channel=NS(send=post))
-asyncio.run(main.daily_games.callback(inter))
-asyncio.run(main.daily_games.callback(inter))
+def channel(cid):
+  async def send(embed):
+    m = NS(id=1000 + len(posted), channel=NS(id=cid)); posted.append(m); return m
+  return NS(id=cid, send=send)
+async def done(): pass
+main.bot.get_partial_messageable = lambda cid: NS(get_partial_message=lambda mid: NS(
+  delete=lambda: (deleted.append((cid, mid)), done())[1],
+  edit=lambda embed: (edited.append((cid, mid, embed.description)), done())[1]))
+def run_in(guild_id, channel_id):
+  inter = NS(user=NS(id=77, display_name="dana"), guild_id=guild_id, response=NS(send_message=reply), channel=channel(channel_id))
+  asyncio.run(main.daily_games.callback(inter))
+run_in(9, 55)
+run_in(9, 55)
 dana = games.for_user(77)
-assert len(posted) == 2 and dana["message_id"] == 1001 and dana["channel_id"] == 55
-assert deleted == [(55, 1000)]  # the first embed is removed when the second is posted
+assert dana["embeds"] == {"9": [55, 1001]} and len(posted) == 2
+assert dana["guild"] == 9 and dana["guilds"] == [9]  # running the command puts you on that server's board
+assert deleted == [(55, 1000)]  # the first embed in this server is removed when the second is posted
 assert all(r["ephemeral"] and r["delete_after"] == 60 for r in replies) and len(replies) == 2
+run_in(8, 66)  # another server: its own embed, server 9's untouched
+assert dana["embeds"] == {"9": [55, 1001], "8": [66, 1002]} and deleted == [(55, 1000)]
+games.record(dana, "chess", 1, 0, ["Perfect"], None)
+asyncio.run(main.push_update(dana))  # a score updates the embed in every server, with the same content
+assert sorted((c, m) for c, m, _ in edited) == [(55, 1001), (66, 1002)]
+assert edited[0][2] == edited[1][2] and "dana played **Chess Puzzle**" in edited[0][2]
 
 # chess.com's API-host checks are patched to stay on the page's origin
 chess_js = b"if(n===`api`||n.startsWith(`api-`)?e:x);if(a.b.hostname===`localhost`)t=1"

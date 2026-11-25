@@ -34,16 +34,19 @@ def get_session(user: discord.abc.User) -> dict:
 
 
 async def push_update(s: dict):
-  if s.get("pending") or not s.get("message_id"):
+  if s.get("pending") or not s.get("embeds"):
     return
   s["pending"] = True
-  await asyncio.sleep(2)  # coalesce rapid clicks into one edit to stay under discord's rate limit
+  await asyncio.sleep(2)  # coalesce rapid clicks into one edit per embed to stay under discord's rate limit
   s["pending"] = False
-  try:
-    # by id rather than a kept Message object, so it still works for sessions restored after a restart
-    await bot.get_partial_messageable(s["channel_id"]).get_partial_message(s["message_id"]).edit(embed=render(s))
-  except discord.HTTPException:
-    logging.exception("couldnt update daily games message")
+  embed = render(s)
+  # every server's embed shows the same scores; by id rather than a kept Message object, so it
+  # still works for sessions restored after a restart
+  for channel_id, message_id in list(s["embeds"].values()):
+    try:
+      await bot.get_partial_messageable(channel_id).get_partial_message(message_id).edit(embed=embed)
+    except discord.HTTPException:
+      logging.exception("couldnt update daily games message")
 
 # called from flask's threads when someone opens or finishes a game
 games.on_update = lambda s: asyncio.run_coroutine_threadsafe(push_update(s), bot.loop)
@@ -60,19 +63,21 @@ async def on_ready():
 @bot.tree.command(name="daily-games", description="play today's daily games")
 async def daily_games(interaction: discord.Interaction):
   s = await asyncio.to_thread(get_session, interaction.user)  # may write to the database; keep the bot responsive
+  games.join_guild(s, interaction.guild_id)  # saved to the database with the embed below
   view = discord.ui.View()
   view.add_item(discord.ui.Button(label="play", url=f"{PUBLIC_URL}/play/{s['token']}/"))
   # the private reply vanishes after a minute to keep the channel tidy; running the command again brings it back
   await interaction.response.send_message("good luck", view=view, ephemeral=True, delete_after=60)
-  # post your embed fresh where you ran this and remove your previous one, so it's always the
-  # latest message rather than lost further up, in another channel, or deleted
-  old_channel, old_message = s.get("channel_id"), s.get("message_id")
+  # one embed per server: post yours fresh where you ran this and remove your previous one in this
+  # server only, so it's the latest message rather than lost further up, in another channel, or deleted
+  key = str(interaction.guild_id or 0)  # 0: a DM with the bot; str because it round-trips through jsonb
+  old = s["embeds"].get(key)
   msg = await interaction.channel.send(embed=render(s))
-  s["channel_id"], s["message_id"] = msg.channel.id, msg.id
+  s["embeds"][key] = [msg.channel.id, msg.id]
   await asyncio.to_thread(db.save_session, s)
-  if old_message:
+  if old:
     try:
-      await bot.get_partial_messageable(old_channel).get_partial_message(old_message).delete()
+      await bot.get_partial_messageable(old[0]).get_partial_message(old[1]).delete()
     except discord.HTTPException:
       pass  # already deleted, or the bot can't see that channel anymore
 

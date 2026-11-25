@@ -20,7 +20,7 @@ def hub(token):
 @app.route('/play/<token>/leaderboard')  # beats the <game> rule below: werkzeug ranks static parts first
 def leaderboard(token):
   session = games.SESSIONS.get(token) or abort(404)
-  return {"done": [r["game"] for r in session["results"].values()], "board": games.leaderboard()}
+  return {"done": [r["game"] for r in session["results"].values()], "board": games.leaderboard(session)}
 
 @app.route('/play/<token>/<game>')
 def play(token, game):

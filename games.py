@@ -54,9 +54,19 @@ def new_session(user_id: int, name: str) -> dict:
     for token in [t for t, s in SESSIONS.items() if s["day"] != day]:
       del SESSIONS[token]  # memory only: past days stay in the database
     token = secrets.token_urlsafe(16)
-    s = SESSIONS[token] = {"token": token, "user_id": user_id, "name": name, "day": day, "played": [], "results": {}}
+    s = SESSIONS[token] = {"token": token, "user_id": user_id, "name": name, "day": day, "played": [], "results": {},
+                           "guilds": [], "guild": None, "embeds": {}}  # embeds: server id -> [channel id, message id]
   db.save_session(s)
   return s
+
+
+def join_guild(session: dict, guild_id: int | None) -> None:
+  """Puts the player on that server's leaderboard (their scores are shared by every server they're
+  on) and makes it the one their hub shows. None is a DM: no server board."""
+  with _lock:
+    session["guild"] = guild_id
+    if guild_id is not None and guild_id not in session["guilds"]:
+      session["guilds"].append(guild_id)
 
 
 def _changed(s: dict) -> None:
@@ -94,14 +104,15 @@ def record(session: dict, game: str, num: int, score: float, details: list[str],
   _changed(session)
 
 
-def leaderboard() -> dict[str, list[dict]]:
-  """Today's players ranked per game, best first, equal scores by the faster time:
-  game key -> [{name, score, summary, secs}]."""
-  day = today()
+def leaderboard(viewer: dict) -> dict[str, list[dict]]:
+  """Today's players on the viewer's current server (plus the viewer) ranked per game, best first,
+  equal scores by the faster time: game key -> [{name, score, summary, secs}]."""
+  day, guild = today(), viewer.get("guild")
   board = {key: [] for key in GAMES}
   with _lock:
     for s in SESSIONS.values():
-      for r in s["results"].values() if s["day"] == day else ():
+      on_board = s is viewer or (guild is not None and guild in s.get("guilds", ()))
+      for r in s["results"].values() if s["day"] == day and on_board else ():
         board[r["game"]].append({"name": s["name"], "score": r["score"], "summary": (r["details"] or [""])[0], "secs": r.get("secs")})
   for key, rows in board.items():
     sign = -1 if GAMES[key][3] else 1
