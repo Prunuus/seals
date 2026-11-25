@@ -7,6 +7,7 @@ if (!day) return null;
 var EMOJI = { plankton: "🫧", tooclever: "🤡", schooler: "🐟", rare: "🦑", deepcut: "🏮", krillion: "🌟", miss: "⬛" };
 return {
   num: day.dayNumber,
+  score: day.score,
   streak: stats.currentStreak > 1 ? stats.currentStreak : null,
   details: [day.score + " points", day.tiers.map(function (t) { return EMOJI[t] || "⬛"; }).join("")],
 };

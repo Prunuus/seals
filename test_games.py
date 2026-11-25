@@ -63,13 +63,27 @@ assert g.get("/old", base_url=K).location == f"{K}/next"
 js = g.get("/__dgb/capture.js", base_url=K).get_data(as_text=True)
 assert "function result(res)" in js and "krillion:stats:v1" in js and "/__dgb/result" in js
 
-assert g.post("/__dgb/result", base_url=K, json={"num": "1", "details": []}).status_code == 400
-assert g.post("/__dgb/result", base_url=K, json={"num": 1, "details": [5]}).status_code == 400
+assert g.post("/__dgb/result", base_url=K, json={"num": "1", "score": 1, "details": []}).status_code == 400
+assert g.post("/__dgb/result", base_url=K, json={"num": 1, "score": 1, "details": [5]}).status_code == 400
+assert g.post("/__dgb/result", base_url=K, json={"num": 1, "score": "1", "details": []}).status_code == 400
+assert g.post("/__dgb/result", base_url=K, json={"num": 1, "details": []}).status_code == 400
 calls.clear()
-r = g.post("/__dgb/result", base_url=K, json={"num": 133, "streak": 7, "details": ["380 points", "x" * 500]})
+r = g.post("/__dgb/result", base_url=K, json={"num": 133, "score": 380, "streak": 7, "details": ["380 points", "x" * 500]})
 assert r.status_code == 200 and calls == [1]
-assert s["results"]["Krillion"] == {"num": 133, "streak": 7, "details": ["380 points", "x" * 200]}
+assert s["results"]["Krillion"] == {"game": "krillion", "num": 133, "score": 380, "streak": 7, "details": ["380 points", "x" * 200]}
 assert "tester played **Krillion** #133 🔥 7\n380 points" in main.render(s).description
+
+# --- leaderboard: ranked per game, high or low wins by game ---
+bob = games.new_session(2, "bob")
+games.record(bob, "krillion", 133, 520, ["520 points", "🦑", "extra"], None)
+games.record(bob, "wordle", 1, 5, ["5/6"], None)
+games.record(s, "wordle", 1, 3, ["3/6"], None)
+lb = c.get(f"/play/{t}/leaderboard").get_json()
+assert sorted(lb["done"]) == ["krillion", "wordle"]  # this viewer's finished games, for the green cards
+assert [(r["name"], r["score"]) for r in lb["board"]["krillion"]] == [("bob", 520), ("tester", 380)]  # higher wins
+assert [r["name"] for r in lb["board"]["wordle"]] == ["tester", "bob"]  # fewer guesses wins
+assert lb["board"]["krillion"][0]["details"] == ["520 points", "🦑"] and lb["board"]["chess"] == []
+assert c.get("/play/bad/leaderboard").status_code == 404
 
 # chess.com's API-host checks are patched to stay on the page's origin
 chess_js = b"if(n===`api`||n.startsWith(`api-`)?e:x);if(a.b.hostname===`localhost`)t=1"

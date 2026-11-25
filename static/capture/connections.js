@@ -7,6 +7,8 @@ if (!st || !st.data.puzzleComplete) return null;
 var C = ["🟨", "🟩", "🟦", "🟪"];
 return {
   num: daysSince(st.printDate, "2023-06-11"),
+  // groups solved minus mistakes: 4 is perfect, a loss with none solved -4
+  score: (st.data.solvedCategories || []).length - st.data.mistakes,
   details: [(st.data.puzzleWon ? "Solved" : "Failed") + " with " + st.data.mistakes + " mistakes"].concat(
     st.data.guesses.map(function (g) { return g.cards.map(function (c) { return C[c.level] || "⬜"; }).join(""); })),
 };

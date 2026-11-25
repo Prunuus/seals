@@ -12,4 +12,5 @@ var rows = Array.from(document.querySelectorAll('[role="group"][aria-label^="Row
   .filter(function (t) { return t.length === 5 && t.every(Boolean); })
   .map(function (t) { return t.join(""); });
 if (rows.length !== n) return null;  // the last row is still flipping
-return { num: daysSince(st.printDate, "2021-06-19"), details: [(won ? n : "X") + "/6"].concat(rows) };
+// score: guesses used, a loss counting as 7
+return { num: daysSince(st.printDate, "2021-06-19"), score: won ? n : 7, details: [(won ? n : "X") + "/6"].concat(rows) };

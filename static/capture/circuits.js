@@ -14,6 +14,7 @@ var wrong = perBox(3).reduce(function (n, w) { return n + Math.max(w.length - 1,
 var bolts = perBox(5).reduce(function (n, b) { return n + b.length; }, 0);
 return {
   num: daily.seriesNumber || daysSince(daily.dateKey, "2023-10-16") + 1,
+  score: gp.pointsAwarded,
   details: [
     gp.pointsAwarded.toLocaleString("en-US") + " points in " + clock(gp.elapsedTimeSecs),
     "❌ " + wrong + " wrong · ⚡ " + bolts + " bolts",

@@ -17,6 +17,11 @@ def hub(token):
     abort(404)
   return app.send_static_file("games.html")
 
+@app.route('/play/<token>/leaderboard')  # beats the <game> rule below: werkzeug ranks static parts first
+def leaderboard(token):
+  session = games.SESSIONS.get(token) or abort(404)
+  return {"done": [r["game"] for r in session["results"].values()], "board": games.leaderboard()}
+
 @app.route('/play/<token>/<game>')
 def play(token, game):
   session = games.SESSIONS.get(token) or abort(404)

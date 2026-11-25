@@ -10,6 +10,7 @@ if (!hearts || !(solved || left === 0)) return null;
 var mistakes = hearts - left;
 return {
   num: daysSince(today(), "2007-05-08") + 1,
+  score: mistakes,
   details: [
     solved && left ? (mistakes ? mistakes + " mistakes" : "Perfect") : "Out of hearts",
     "💚".repeat(left) + "💔".repeat(mistakes),

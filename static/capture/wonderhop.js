@@ -9,6 +9,7 @@ var NAMES = { monter: "⬆️ Up", plonger: "⬇️ Down", passe: "⏪ Past", fu
 var streak = ls("cielabysses.streak");
 return {
   num: day,
+  score: done.reduce(function (n, p) { return n + (p.points || 0); }, 0),  // over every direction played
   streak: streak && streak.last === day && streak.count > 1 ? streak.count : null,
   details: done.map(function (p) { return (NAMES[p.sens] || p.sens) + ": " + p.points + " points"; }),
 };

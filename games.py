@@ -7,16 +7,16 @@ from datetime import datetime, timezone
 # wildcard DNS record (*.yourdomain) at this server and set e.g. GAME_ORIGIN=https://{game}.yourdomain
 GAME_ORIGIN = os.getenv("GAME_ORIGIN", "http://{game}.localhost:" + os.getenv("PORT", "8080")).rstrip("/")
 
-GAMES = {  # key -> (name, real origin, landing path); key must match the links in static/games.html
-  "krillion": ("Krillion", "https://krillion.io", "/"),
-  "wordle": ("Wordle", "https://www.nytimes.com", "/games/wordle/index.html"),
-  "connections": ("Connections", "https://www.nytimes.com", "/games/connections"),
-  "gauntle": ("Gauntle", "https://gauntle.com", "/"),
-  "wonderhop": ("Wonderhop", "https://wonderhop.io", "/"),
-  "bracketcity": ("Bracket City", "https://www.theatlantic.com", "/games/bracket-city/"),
-  "chess": ("Chess Puzzle", "https://www.chess.com", "/daily"),
-  "cluesbysam": ("Clues by Sam", "https://cluesbysam.com", "/"),
-  "circuits": ("Circuits", "https://www.puzzmo.com", "/game/circuits/"),
+GAMES = {  # key -> (name, real origin, landing path, higher score wins); key must match the links in static/games.html
+  "krillion": ("Krillion", "https://krillion.io", "/", True),
+  "wordle": ("Wordle", "https://www.nytimes.com", "/games/wordle/index.html", False),
+  "connections": ("Connections", "https://www.nytimes.com", "/games/connections", True),
+  "gauntle": ("Gauntle", "https://gauntle.com", "/", False),
+  "wonderhop": ("Wonderhop", "https://wonderhop.io", "/", True),
+  "bracketcity": ("Bracket City", "https://www.theatlantic.com", "/games/bracket-city/", True),
+  "chess": ("Chess Puzzle", "https://www.chess.com", "/daily", False),
+  "cluesbysam": ("Clues by Sam", "https://cluesbysam.com", "/", False),
+  "circuits": ("Circuits", "https://www.puzzmo.com", "/game/circuits/", True),
 }
 
 SESSIONS: dict[str, dict] = {}  # token -> session
@@ -50,9 +50,22 @@ def play(session: dict, game: str) -> str | None:
   return f"{local_origin(game)}/__dgb/enter?token={session['token']}"
 
 
-def record(session: dict, game: str, num: int, details: list[str], streak: int | None) -> None:
+def record(session: dict, game: str, num: int, score: float, details: list[str], streak: int | None) -> None:
   """Stores a result captured on the game's page, shown in the session's embed under the game's name."""
   with _lock:
     if game not in session["played"]:
       session["played"].append(game)
-    session["results"][GAMES[game][0]] = {"num": num, "streak": streak, "details": details}
+    session["results"][GAMES[game][0]] = {"game": game, "num": num, "score": score, "streak": streak, "details": details}
+
+
+def leaderboard() -> dict[str, list[dict]]:
+  """Today's players ranked per game, best first: game key -> [{name, score, details}]."""
+  day = today()
+  board = {key: [] for key in GAMES}
+  with _lock:
+    for s in SESSIONS.values():
+      for r in s["results"].values() if s["day"] == day else ():
+        board[r["game"]].append({"name": s["name"], "score": r["score"], "details": r["details"][:2]})
+  for key, rows in board.items():
+    rows.sort(key=lambda r: r["score"], reverse=GAMES[key][3])
+  return board

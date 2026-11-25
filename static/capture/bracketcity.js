@@ -12,6 +12,7 @@ var eff = st.totalKeystrokes > 0 ? st.minimumKeystrokes / st.totalKeystrokes * 1
 var score = Math.min(100, Math.max(0, (classic ? eff : 100 - 2 * (st.wrongGuesses || 0)) - 5 * peeks - 15 * reveals));
 return {
   num: daysSince(d, "2025-04-08") + 1,
+  score: Math.round(score * 10) / 10,
   details: [
     Math.round(score * 10) / 10 + " points" + (classic ? " (hard mode)" : ""),
     "❌ " + (st.wrongGuesses || 0) + " wrong · 👀 " + peeks + " peeks · 🛟 " + reveals + " reveals",

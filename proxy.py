@@ -6,6 +6,7 @@ the player's result and post it back (the approach of github.com/CubeTures/Daily
   <game host>/__dgb/result                                   the page reports a finished game here
   <game host>/anything else                                  fetched from the real site, for token holders only
 """
+import math
 import os
 import re
 from urllib.parse import urlsplit
@@ -110,12 +111,14 @@ def _result(game, session):
   # the page is the player's own browser, so this is untrusted: check shapes and cap sizes
   if not isinstance(data, dict):
     abort(400)
-  num, details, streak = data.get("num"), data.get("details"), data.get("streak")
+  num, score, details, streak = data.get("num"), data.get("score"), data.get("details"), data.get("streak")
   if not isinstance(num, int) or not isinstance(details, list) or not all(isinstance(d, str) for d in details):
+    abort(400)
+  if isinstance(score, bool) or not isinstance(score, (int, float)) or not math.isfinite(score):
     abort(400)
   if streak is not None and not isinstance(streak, int):
     abort(400)
-  games.record(session, game, num, [d[:200] for d in details[:12]], streak)
+  games.record(session, game, num, score, [d[:200] for d in details[:12]], streak)
   if "notify" in session:
     session["notify"]()
   return {"status": "saved"}

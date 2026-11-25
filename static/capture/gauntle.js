@@ -15,6 +15,7 @@ if (!run || !(run.ms > 0) || !run.d || !run.d.breakdown) return null;
 var g = run.d.breakdown.games || {}, order = run.d.breakdown.gameOrder || [];
 return {
   num: daysSince(day, "2026-05-13") + 1,
+  score: Math.round(run.ms / 10) / 100,  // total seconds
   details: [
     clock(run.ms / 1000) + " total, " + order.filter(function (id) { return (g[id] || {}).flawless; }).length + "/" + order.length + " flawless",
     order.map(function (id) { var x = g[id] || {}; return x.failed || x.skipped ? "🟥" : x.flawless ? "🟩" : "🟨"; }).join(""),
