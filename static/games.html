@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Games</title>
+<style>
+  :root { --bg:#121417; --card:#1c1f24; --text:#e8e8e8; --muted:#8a9099; --border:#3a3f47; --accent:#5865f2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { width: 100%; max-width: 440px; padding: 24px 16px; }
+  h1 { text-align: center; font-size: 1.5rem; }
+  a { display: flex; gap: 14px; align-items: center; margin: 10px 0; padding: 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); color: inherit; text-decoration: none; }
+  a:hover, a:focus-visible { border-color: var(--accent); }
+  img { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
+  strong { display: block; }
+  span { color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🦭 daily games</h1>
+  <!-- links go through /play/<token>/<game> so the bot sees the click; descriptions quoted from each game's own site; icons via google's favicon service -->
+  <a href="krillion" target="_blank" rel="noopener">
+    <img src="https://www.google.com/s2/favicons?domain=krillion.io&sz=128" alt="">
+    <div><strong>Krillion</strong><span>The daily dive. One in a krillion.</span></div>
+  </a>
+  <a href="wordle" target="_blank" rel="noopener">
+    <img src="https://www.google.com/s2/favicons?domain=nytimes.com&sz=128" alt="">
+    <div><strong>Wordle</strong><span>Get 6 chances to guess a 5-letter word.</span></div>
+  </a>
+  <a href="gauntle" target="_blank" rel="noopener">
+    <img src="https://www.google.com/s2/favicons?domain=gauntle.com&sz=128" alt="">
+    <div><strong>Gauntle</strong><span>Gauntle is a daily back-to-back puzzle gauntlet: 11 different mini-games, one overall timer.</span></div>
+  </a>
+  <a href="wonderhop" target="_blank" rel="noopener">
+    <img src="https://www.google.com/s2/favicons?domain=wonderhop.io&sz=128" alt="">
+    <div><strong>Wonderhop</strong><span>Free daily survey game: give the answer everyone gives, or the one nobody gives.</span></div>
+  </a>
+</main>
+</body>
+</html>
