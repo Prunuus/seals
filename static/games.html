@@ -12,7 +12,7 @@
   h1 { text-align: center; font-size: 1.5rem; margin: 0 0 20px; }
   h2 { font-size: 1.15rem; margin: 0 0 12px; }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .grid, .boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
   .grid a { position: relative; display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: 10px; background: var(--card); border: 2px solid var(--border); color: inherit; text-decoration: none; }
   .grid a:hover, .grid a:focus-visible { border-color: var(--accent); }
   .grid a.done { border-color: var(--done); }
@@ -22,17 +22,17 @@
   .grid span { color: var(--muted); font-size: 0.9rem; }
 
   .board { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
-  .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px; }
-  .tabs button { flex-shrink: 0; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font: inherit; font-size: 0.9rem; cursor: pointer; }
-  .tabs button:hover, .tabs button:focus-visible { border-color: var(--accent); color: var(--text); }
-  .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .lb { padding: 14px; border-radius: 10px; background: var(--card); border: 2px solid var(--border); }
+  .lb header { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-weight: 700; }
+  .lb header img { width: 28px; height: 28px; border-radius: 6px; }
   ol { list-style: none; margin: 0; padding: 0; }
-  li { display: grid; grid-template-columns: 2.2em minmax(0, 1fr); gap: 2px 8px; padding: 10px 12px; border-radius: 8px; background: var(--card); margin-bottom: 6px; }
-  li .rank { grid-row: span 2; color: var(--muted); font-weight: 700; }
+  li { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; gap: 0 8px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--border); }
+  li .rank { color: var(--muted); font-weight: 700; }
   li:nth-child(1) .rank { color: #f1c40f; }
   li .name { font-weight: 600; overflow-wrap: anywhere; }
-  li .detail { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
-  .empty { color: var(--muted); }
+  li .detail { grid-column: 2; color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+  li .time { grid-column: 3; grid-row: 1; color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); font-size: 0.9rem; margin: 0; }
 </style>
 </head>
 <body>
@@ -80,45 +80,44 @@
 
   <section class="board" aria-labelledby="board-title">
     <h2 id="board-title">Today's leaderboard</h2>
-    <div class="tabs" role="tablist" aria-label="Game"></div>
-    <div role="tabpanel" aria-live="polite"><p class="empty">Loading…</p></div>
+    <p class="empty status" aria-live="polite">Loading…</p>
+    <div class="boards"></div>
   </section>
 </main>
 <script>
-  // Tabs come from the cards above; data from leaderboard (relative to /play/<token>/), polled and
-  // refreshed when you come back from a game's tab. Names and result lines are player-supplied,
-  // so they only ever go in via textContent.
+  // One leaderboard card per game card above, in the same order; data from leaderboard (relative to
+  // /play/<token>/), polled and refreshed when you come back from a game's tab. Names and result
+  // lines are player-supplied, so they only ever go in via textContent.
   var cards = Array.from(document.querySelectorAll(".grid a"));
-  var tabs = document.querySelector(".tabs"), panel = document.querySelector("[role=tabpanel]");
-  var data = null, current = cards[0].getAttribute("href");
+  var boards = document.querySelector(".boards"), statusEl = document.querySelector(".status");
+  var data = null;
 
   function el(tag, cls, text) { var e = document.createElement(tag); e.className = cls; e.textContent = text; return e; }
-
-  cards.forEach(function (a) {
-    var key = a.getAttribute("href"), b = document.createElement("button");
-    b.type = "button"; b.setAttribute("role", "tab"); b.textContent = a.querySelector("strong").textContent;
-    b.onclick = function () { current = key; draw(); };
-    b.dataset.key = key;
-    tabs.appendChild(b);
-  });
+  function clock(s) {
+    if (s == null) return "–";
+    s = Math.round(s);
+    var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, pad = function (n) { return String(n).padStart(2, "0"); };
+    return (h ? h + ":" + pad(m) : m) + ":" + pad(s % 60);
+  }
 
   function draw() {
-    tabs.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-selected", b.dataset.key === current); });
-    if (!data) return;
     cards.forEach(function (a) { a.classList.toggle("done", data.done.indexOf(a.getAttribute("href")) !== -1); });
-    var rows = data.board[current] || [];
-    panel.replaceChildren();
-    if (!rows.length) {
-      panel.appendChild(el("p", "empty", "Nobody has finished " + tabs.querySelector('[data-key="' + current + '"]').textContent + " yet today."));
-      return;
-    }
-    var ol = document.createElement("ol");
-    rows.forEach(function (r, i) {
-      var li = document.createElement("li");
-      li.append(el("span", "rank", i + 1 + "."), el("span", "name", r.name), el("span", "detail", r.details.join("  ·  ")));
-      ol.appendChild(li);
-    });
-    panel.appendChild(ol);
+    statusEl.hidden = true;
+    boards.replaceChildren.apply(boards, cards.map(function (a) {
+      var card = el("article", "lb", ""), head = document.createElement("header"), rows = data.board[a.getAttribute("href")] || [];
+      head.append(a.querySelector("img").cloneNode(), a.querySelector("strong").textContent);
+      card.appendChild(head);
+      if (!rows.length) { card.appendChild(el("p", "empty", "Nobody has finished it yet today.")); return card; }
+      var ol = document.createElement("ol");
+      rows.forEach(function (r, i) {
+        var li = document.createElement("li"), time = el("span", "time", clock(r.secs));
+        time.title = r.secs == null ? "no time recorded" : "time to finish";
+        li.append(el("span", "rank", i + 1 + "."), el("span", "name", r.name), time, el("span", "detail", r.summary));
+        ol.appendChild(li);
+      });
+      card.appendChild(ol);
+      return card;
+    }));
   }
 
   function load() {
@@ -126,11 +125,10 @@
       if (r.status === 404) throw new Error("This link has expired. Run /daily-games again for a new one.");
       return r.json();
     }).then(function (d) { data = d; draw(); }).catch(function (e) {
-      if (!data) panel.replaceChildren(el("p", "empty", e.message.indexOf("expired") !== -1 ? e.message : "Couldn't load the leaderboard."));
+      if (!data) statusEl.textContent = e.message.indexOf("expired") !== -1 ? e.message : "Couldn't load the leaderboard.";
     });
   }
 
-  draw();
   load();
   setInterval(load, 30000);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });

@@ -34,6 +34,7 @@ create table if not exists results (
   updated_at timestamptz not null default now(),
   primary key (token, game)
 );
+alter table results add column if not exists secs double precision;  -- time to finish; added after the first deploy
 -- the bot connects as the postgres role, which bypasses row level security; turning it on with
 -- no policies keeps Supabase's public REST API (the anon key) out of these tables
 alter table sessions enable row level security;
@@ -75,7 +76,7 @@ def save_session(s: dict) -> None:
 
 
 def save_result(token: str, game: str, r: dict) -> None:
-  _run("""insert into results (token, game, num, score, streak, details) values (%s, %s, %s, %s, %s, %s)
+  _run("""insert into results (token, game, num, score, streak, details, secs) values (%s, %s, %s, %s, %s, %s, %s)
           on conflict (token, game) do update set num = excluded.num, score = excluded.score,
-            streak = excluded.streak, details = excluded.details, updated_at = now()""",
-       (token, game, r["num"], r["score"], r["streak"], Jsonb(r["details"])))
+            streak = excluded.streak, details = excluded.details, secs = excluded.secs, updated_at = now()""",
+       (token, game, r["num"], r["score"], r["streak"], Jsonb(r["details"]), r.get("secs")))

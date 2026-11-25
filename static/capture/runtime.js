@@ -3,6 +3,7 @@
 // day's game is finished, then {num, details: [lines], streak?}. It's called after storage writes,
 // DOM changes and every second with no argument, and with res = {url, req, json} after each
 // fetch/XHR response. Each new result is posted to /__dgb/result, where the bot picks it up.
+// Games that time themselves put it in r.secs; the rest get the solve timer below.
 if (window.__dgb) return;
 window.__dgb = true;
 
@@ -25,6 +26,7 @@ function check(res) {
   var r;
   try { r = result(res); } catch (e) { return; }  // half-written state; the next check retries
   if (!r) return;
+  if (r.secs == null) r.secs = timerSecs();
   var body = JSON.stringify(r);
   if (body === lastSent) return;
   lastSent = body;
@@ -66,5 +68,30 @@ XMLHttpRequest.prototype.send = function (body) {
 
 var setItem = Storage.prototype.setItem;
 Storage.prototype.setItem = function () { setItem.apply(this, arguments); soon(); };
+
+// Solve timer: starts at the first load of this game's page on a day and stops when its result
+// first appears, kept in the game's localStorage so reloads and reopening don't change it. Only
+// counts if the player clicked or typed, so a game already finished elsewhere gets no time.
+// shortcut: days follow the player's local date, so a game started just before midnight restarts its timer
+var TIMER = "__dgb_timer";
+function saveTimer(t) { try { setItem.call(localStorage, TIMER, JSON.stringify(t)); } catch (e) {} }
+function timer() {
+  var t = ls(TIMER);
+  if (!t || t.day !== today()) { t = { day: today(), start: Date.now(), played: false, end: null }; saveTimer(t); }
+  return t;
+}
+function timerSecs() {
+  var t = timer();
+  if (!t.played) return null;
+  if (!t.end) { t.end = Date.now(); saveTimer(t); }
+  return Math.round((t.end - t.start) / 1000);
+}
+timer();
+["pointerdown", "keydown"].forEach(function (name) {
+  window.addEventListener(name, function (e) {
+    var t = timer();
+    if (e.isTrusted && !t.played) { t.played = true; saveTimer(t); }
+  }, true);
+});
 new MutationObserver(soon).observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true });
 setInterval(soon, 1000);

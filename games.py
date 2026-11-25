@@ -37,7 +37,7 @@ def local_origin(game: str) -> str:
 def load() -> None:
   """Restores today's sessions from the database, so links and results survive a restart."""
   for s in db.init(today()):
-    s["results"] = {GAMES[r["game"]][0]: {k: r[k] for k in ("game", "num", "score", "streak", "details")}
+    s["results"] = {GAMES[r["game"]][0]: {k: r[k] for k in ("game", "num", "score", "streak", "details", "secs")}
                     for r in s["results"] if r["game"] in GAMES}
     SESSIONS[s["token"]] = s
 
@@ -76,9 +76,11 @@ def play(session: dict, game: str) -> str | None:
   return f"{local_origin(game)}/__dgb/enter?token={session['token']}"
 
 
-def record(session: dict, game: str, num: int, score: float, details: list[str], streak: int | None) -> None:
-  """Stores a result captured on the game's page, shown in the session's embed under the game's name."""
-  r = {"game": game, "num": num, "score": score, "streak": streak, "details": details}
+def record(session: dict, game: str, num: int, score: float, details: list[str], streak: int | None,
+           secs: float | None = None) -> None:
+  """Stores a result captured on the game's page, shown in the session's embed under the game's name.
+  secs is how long it took to finish, when known."""
+  r = {"game": game, "num": num, "score": score, "streak": streak, "details": details, "secs": secs}
   with _lock:
     new = game not in session["played"]
     if new:
@@ -91,13 +93,15 @@ def record(session: dict, game: str, num: int, score: float, details: list[str],
 
 
 def leaderboard() -> dict[str, list[dict]]:
-  """Today's players ranked per game, best first: game key -> [{name, score, details}]."""
+  """Today's players ranked per game, best first, equal scores by the faster time:
+  game key -> [{name, score, summary, secs}]."""
   day = today()
   board = {key: [] for key in GAMES}
   with _lock:
     for s in SESSIONS.values():
       for r in s["results"].values() if s["day"] == day else ():
-        board[r["game"]].append({"name": s["name"], "score": r["score"], "details": r["details"][:2]})
+        board[r["game"]].append({"name": s["name"], "score": r["score"], "summary": (r["details"] or [""])[0], "secs": r.get("secs")})
   for key, rows in board.items():
-    rows.sort(key=lambda r: r["score"], reverse=GAMES[key][3])
+    sign = -1 if GAMES[key][3] else 1
+    rows.sort(key=lambda r: (sign * r["score"], r["secs"] if r["secs"] is not None else float("inf")))
   return board

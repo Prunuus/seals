@@ -73,7 +73,11 @@ assert g.post("/__dgb/result", base_url=K, json={"num": 1, "details": []}).statu
 calls.clear()
 r = g.post("/__dgb/result", base_url=K, json={"num": 133, "score": 380, "streak": 7, "details": ["380 points", "x" * 500]})
 assert r.status_code == 200 and calls == [1]
-assert s["results"]["Krillion"] == {"game": "krillion", "num": 133, "score": 380, "streak": 7, "details": ["380 points", "x" * 200]}
+assert s["results"]["Krillion"] == {"game": "krillion", "num": 133, "score": 380, "streak": 7, "details": ["380 points", "x" * 200], "secs": None}
+for bad in (-1, "60", True, 10 ** 9):
+  assert g.post("/__dgb/result", base_url=K, json={"num": 133, "score": 380, "details": [], "secs": bad}).status_code == 400, bad
+assert g.post("/__dgb/result", base_url=K, json={"num": 133, "score": 380, "streak": 7, "details": ["380 points"], "secs": 252}).status_code == 200
+assert s["results"]["Krillion"]["secs"] == 252
 assert "tester played **Krillion** #133 🔥 7\n380 points" in main.render(s).description
 
 # --- leaderboard: ranked per game, high or low wins by game ---
@@ -81,11 +85,17 @@ bob = games.new_session(2, "bob")
 games.record(bob, "krillion", 133, 520, ["520 points", "🦑", "extra"], None)
 games.record(bob, "wordle", 1, 5, ["5/6"], None)
 games.record(s, "wordle", 1, 3, ["3/6"], None)
+eve = games.new_session(3, "eve")
+games.record(eve, "wordle", 1, 3, ["3/6"], None, 95)  # same score as tester but timed: faster wins the tie
+games.record(bob, "chess", 1, 0, ["Perfect"], None, 200)
+games.record(eve, "chess", 1, 0, ["Perfect"], None, 80)
 lb = c.get(f"/play/{t}/leaderboard").get_json()
 assert sorted(lb["done"]) == ["krillion", "wordle"]  # this viewer's finished games, for the green cards
 assert [(r["name"], r["score"]) for r in lb["board"]["krillion"]] == [("bob", 520), ("tester", 380)]  # higher wins
-assert [r["name"] for r in lb["board"]["wordle"]] == ["tester", "bob"]  # fewer guesses wins
-assert lb["board"]["krillion"][0]["details"] == ["520 points", "🦑"] and lb["board"]["chess"] == []
+assert [r["name"] for r in lb["board"]["wordle"]] == ["eve", "tester", "bob"]  # fewer guesses wins, untimed ties last
+assert [r["name"] for r in lb["board"]["chess"]] == ["eve", "bob"]  # equal scores: faster first
+assert lb["board"]["krillion"][0] == {"name": "bob", "score": 520, "summary": "520 points", "secs": None}
+assert lb["board"]["chess"][0]["secs"] == 80 and lb["board"]["gauntle"] == []
 assert c.get("/play/bad/leaderboard").status_code == 404
 
 # chess.com's API-host checks are patched to stay on the page's origin

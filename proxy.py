@@ -118,7 +118,10 @@ def _result(game, session):
     abort(400)
   if streak is not None and not isinstance(streak, int):
     abort(400)
-  games.record(session, game, num, score, [d[:200] for d in details[:12]], streak)
+  secs = data.get("secs")
+  if secs is not None and (isinstance(secs, bool) or not isinstance(secs, (int, float)) or not 0 <= secs < 7 * 86400):
+    abort(400)
+  games.record(session, game, num, score, [d[:200] for d in details[:12]], streak, secs)
   return {"status": "saved"}
 
 
