@@ -119,8 +119,6 @@ def _result(game, session):
   if streak is not None and not isinstance(streak, int):
     abort(400)
   games.record(session, game, num, score, [d[:200] for d in details[:12]], streak)
-  if "notify" in session:
-    session["notify"]()
   return {"status": "saved"}
 
 

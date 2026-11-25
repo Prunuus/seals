@@ -1,4 +1,5 @@
 import os
+os.environ["DATABASE_URL"] = ""  # memory only: load_dotenv won't override it, so tests never touch the real database
 import httpx
 import games
 import keep_alive
@@ -8,10 +9,12 @@ import proxy
 # --- site click tracking ---
 s = games.new_session(1, "tester")
 calls = []
-s["notify"] = lambda: calls.append(1)
+games.on_update = lambda _: calls.append(1)  # main.py points this at the discord embed
 c = keep_alive.app.test_client()
 t = s["token"]
 
+home = c.get("/")
+assert home.status_code == 200 and b'run <code class="cmd">/daily-games</code>' in home.data
 assert c.get("/play/bad/").status_code == 404
 assert c.get(f"/play/{t}").status_code == 308  # redirects to trailing slash
 assert b"krillion" in c.get(f"/play/{t}/").data

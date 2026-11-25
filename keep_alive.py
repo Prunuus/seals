@@ -8,8 +8,8 @@ app = Flask(__name__)
 app.before_request(proxy.handle)  # requests to a game's subdomain go to the proxy instead of the routes below
 
 @app.route('/')
-def home():
-  return "i am running. better catch me"
+def home():  # also what uptime pingers hit, so keep it a plain 200
+  return app.send_static_file("home.html")
 
 @app.route('/play/<token>/')  # trailing slash so the page's relative game links include the token
 def hub(token):
@@ -26,8 +26,6 @@ def leaderboard(token):
 def play(token, game):
   session = games.SESSIONS.get(token) or abort(404)
   url = games.play(session, game) or abort(404)
-  if "notify" in session:
-    session["notify"]()
   return redirect(url)
 
 def run():

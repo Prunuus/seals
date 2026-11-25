@@ -3,6 +3,8 @@ import secrets
 import threading
 from datetime import datetime, timezone
 
+import db
+
 # Each game is reverse-proxied from its own subdomain (see proxy.py). In production point a
 # wildcard DNS record (*.yourdomain) at this server and set e.g. GAME_ORIGIN=https://{game}.yourdomain
 GAME_ORIGIN = os.getenv("GAME_ORIGIN", "http://{game}.localhost:" + os.getenv("PORT", "8080")).rstrip("/")
@@ -19,8 +21,9 @@ GAMES = {  # key -> (name, real origin, landing path, higher score wins); key mu
   "circuits": ("Circuits", "https://www.puzzmo.com", "/game/circuits/", True),
 }
 
-SESSIONS: dict[str, dict] = {}  # token -> session
+SESSIONS: dict[str, dict] = {}  # token -> session; today's are also in the database (see db.py)
 _lock = threading.Lock()  # flask serves requests on multiple threads
+on_update = None  # set by main.py: called with a session whenever its embed should be redrawn
 
 
 def today() -> str:
@@ -31,13 +34,32 @@ def local_origin(game: str) -> str:
   return GAME_ORIGIN.format(game=game)
 
 
+def load() -> None:
+  """Restores today's sessions from the database, so links and results survive a restart."""
+  for s in db.init(today()):
+    s["results"] = {GAMES[r["game"]][0]: {k: r[k] for k in ("game", "num", "score", "streak", "details")}
+                    for r in s["results"] if r["game"] in GAMES}
+    SESSIONS[s["token"]] = s
+
+
+def for_user(user_id: int) -> dict | None:
+  return next((s for s in SESSIONS.values() if s["user_id"] == user_id and s["day"] == today()), None)
+
+
 def new_session(user_id: int, name: str) -> dict:
   day = today()
-  for token in [t for t, s in SESSIONS.items() if s["day"] != day]:
-    del SESSIONS[token]
-  token = secrets.token_urlsafe(16)
-  SESSIONS[token] = {"token": token, "user_id": user_id, "name": name, "day": day, "played": [], "results": {}}
-  return SESSIONS[token]
+  with _lock:
+    for token in [t for t, s in SESSIONS.items() if s["day"] != day]:
+      del SESSIONS[token]  # memory only: past days stay in the database
+    token = secrets.token_urlsafe(16)
+    s = SESSIONS[token] = {"token": token, "user_id": user_id, "name": name, "day": day, "played": [], "results": {}}
+  db.save_session(s)
+  return s
+
+
+def _changed(s: dict) -> None:
+  if on_update:
+    on_update(s)
 
 
 def play(session: dict, game: str) -> str | None:
@@ -45,17 +67,27 @@ def play(session: dict, game: str) -> str | None:
   if game not in GAMES:
     return None
   with _lock:
-    if game not in session["played"]:
+    new = game not in session["played"]
+    if new:
       session["played"].append(game)
+  if new:
+    db.save_session(session)
+  _changed(session)
   return f"{local_origin(game)}/__dgb/enter?token={session['token']}"
 
 
 def record(session: dict, game: str, num: int, score: float, details: list[str], streak: int | None) -> None:
   """Stores a result captured on the game's page, shown in the session's embed under the game's name."""
+  r = {"game": game, "num": num, "score": score, "streak": streak, "details": details}
   with _lock:
-    if game not in session["played"]:
+    new = game not in session["played"]
+    if new:
       session["played"].append(game)
-    session["results"][GAMES[game][0]] = {"game": game, "num": num, "score": score, "streak": streak, "details": details}
+    session["results"][GAMES[game][0]] = r
+  if new:
+    db.save_session(session)
+  db.save_result(session["token"], game, r)
+  _changed(session)
 
 
 def leaderboard() -> dict[str, list[dict]]:
